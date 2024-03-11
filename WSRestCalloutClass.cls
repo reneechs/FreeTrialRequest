@@ -30,24 +30,24 @@ global class WSRestCalloutClass {
 	
 
 	webservice static string makePostCallout(Id p1, Integer p2) {
-		String sMsgAlert					= 'You don\'t have the rights to perform a request on the server. Please contact the Pre-sales or the Hosting Team.';
-		List<User> lstUser					= [SELECT ProfileId FROM USER WHERE Profile.Name IN: SET_PROFILE_AUTHORIZE AND ProfileId =:UserInfo.getProfileId() LIMIT 1];
+		String sMsgAlert	= 'You don\'t have the rights to perform a request on the server. Please contact the Pre-sales or the Hosting Team.';
+		List<User> lstUser	= [SELECT ProfileId FROM USER WHERE Profile.Name IN: SET_PROFILE_AUTHORIZE AND ProfileId =:UserInfo.getProfileId() LIMIT 1];
         if(lstUser.size() > 0){
-			// ******************************************************* ATTRIBUTES **********************************************************
-			Map<Integer,String> mapMethods		= new Map<Integer,String>{	1 => '/AutoToolsWebService/api/V1.0/Users/UpdateUserPassword',
-																			2 => '/AutoToolsWebService/api/V1.0/Users/UpdateUser', // creation
-																			3 => '/AutoToolsWebService/api/V1.0/Users/UpdateUser', // update
-																			4 => '/AutoToolsWebService/api/V1.0/Environments/UpdateEnvPassword',
-																			5 => '/AutoToolsWebService/api/V1.0/Environments/RequestReinitEnv',
+		// ******************************************************* ATTRIBUTES **********************************************************
+		Map<Integer,String> mapMethods		= new Map<Integer,String>{	1 => '/AutoToolsWebService/api/V1.0/Users/UpdateUserPassword',
+											2 => '/AutoToolsWebService/api/V1.0/Users/UpdateUser', // creation
+											3 => '/AutoToolsWebService/api/V1.0/Users/UpdateUser', // update
+											4 => '/AutoToolsWebService/api/V1.0/Environments/UpdateEnvPassword',
+											5 => '/AutoToolsWebService/api/V1.0/Environments/RequestReinitEnv',
 																			
 
-			List<TrialLogin__c> lstTL			= new List<TrialLogin__c>();
+			List<TrialLogin__c> lstTL		= new List<TrialLogin__c>();
 			List<MEGAEnvironment__c> lstME		= new List<MEGAEnvironment__c>();
 			String sJsonBody;
 			String sServer;
 			String sMEGAEnv;
 			String sMEGAUsr;
-			sMsgAlert					= 'The request failed to get a respond from the server.';
+			sMsgAlert				= 'The request failed to get a respond from the server.';
 
 			// *****************************************************************************************************************
 			// Description : UpdateUserPassword && UpdateUser
@@ -55,9 +55,9 @@ global class WSRestCalloutClass {
 
 			if(p2 < 4 && p2 > 0){
 				try{
-					lstTL			= [	SELECT MEGAUser__r.Name, CustomUserName__c, MEGAProfile__r.Name, TrialRequest__r.MEGAEnvironment__r.Name, TrialRequest__r.MEGAEnvironment__r.Server__r.Name, 
-										TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c, TrialRequest__r.StartDate__c, TrialRequest__r.EndDate__c, Language__c, CommandLine__c, Email__c 
-										FROM TrialLogin__c WHERE (ID =:p1 OR TrialRequest__c =:p1) ];
+					lstTL	= [SELECT MEGAUser__r.Name, CustomUserName__c, MEGAProfile__r.Name, TrialRequest__r.MEGAEnvironment__r.Name, TrialRequest__r.MEGAEnvironment__r.Server__r.Name, 
+						 TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c, TrialRequest__r.StartDate__c, TrialRequest__r.EndDate__c, Language__c, CommandLine__c, Email__c 
+						FROM TrialLogin__c WHERE (ID =:p1 OR TrialRequest__c =:p1) ];
 				}
 				catch(QueryException e){
 					System.debug('##### makePostCallout on TrialLogin__c ##### Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage());
@@ -297,9 +297,5 @@ global class WSRestCalloutClass {
 			lstAtc = (List<AutoToolsResponse>)System.JSON.deserialize(sResp, List<AutoToolsResponse>.class);
 
 		return lstAtc;
-	}
-
-	
-
-	
+	}	
 }
