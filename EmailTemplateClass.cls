@@ -1,4 +1,5 @@
 /**********************************************************************************************************
+* Author : Renee Chua
 * Description:   This class configures the email content to be sent for Free Trial Request
 ***********************************************************************************************************/
 public class EmailTemplateClass{
@@ -75,10 +76,10 @@ public class EmailTemplateClass{
             // Notification for POC
             else if(sObjTR.Type__c == S_TR_TYPE_POC && sObjTR.POC_T_C_Accepted__c == true){
                 sSubject = sObjTR.Contact__r.Account.Corporate_Name__c+': Your  PoC access';
-            }
-			else if(sObjTR.Type__c == S_TR_TYPE_PROJ){
-                sSubject = sObjTR.Contact__r.Account.Corporate_Name__c+': Your  Project Platform';
-            }
+            	}
+		else if(sObjTR.Type__c == S_TR_TYPE_PROJ){
+                	sSubject = sObjTR.Contact__r.Account.Corporate_Name__c+': Your  Project Platform';
+            	}
  
             // ADD Internal Recipients
             if(sObjTR.SalesRepresentative__c != null && sObjTR.SalesRepresentative__r.Email != null){
@@ -155,7 +156,7 @@ public class EmailTemplateClass{
 			
 
  
-	// BODY for Type POC or FREE TRIAL for both EN and FR Template
+	// BODY for Type POC or FREE TRIAL for both EN(English) and FR(French) Template
 			
 	if(sObjTR.Type__c == S_TR_TYPE_FT && sObjTR.Language__c == 'FR') {
 		sHtmlBody +='<div style="font-family:Verdana; font-size:18px; color:#31B672; line-height: 17px; font-weight: bold">Votre demande d’essai de 30 jours avec </div>&nbsp;<br/><br/>';
