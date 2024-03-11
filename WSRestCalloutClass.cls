@@ -26,7 +26,7 @@ global class WSRestCalloutClass {
 
 	
 	    
-	private static final set<String> SET_PROFILE_AUTHORIZE = new Set<String>{'System Administrator', 'MEGA System Admin', 'MEGA Hosting Team', 'MEGA Pre-Sales Team'};
+	private static final set<String> SET_PROFILE_AUTHORIZE = new Set<String>{'System Administrator', 'System Admin', 'Hosting Team', 'Pre-Sales Team'};
 	
 
 	webservice static string makePostCallout(Id p1, Integer p2) {
@@ -42,11 +42,11 @@ global class WSRestCalloutClass {
 																			
 
 			List<TrialLogin__c> lstTL		= new List<TrialLogin__c>();
-			List<MEGAEnvironment__c> lstME		= new List<MEGAEnvironment__c>();
+			List< Environment__c> lstME		= new List<Environment__c>();
 			String sJsonBody;
 			String sServer;
-			String sMEGAEnv;
-			String sMEGAUsr;
+			String sEnv;
+			String sUsr;
 			sMsgAlert				= 'The request failed to get a respond from the server.';
 
 			// *****************************************************************************************************************
@@ -55,31 +55,31 @@ global class WSRestCalloutClass {
 
 			if(p2 < 4 && p2 > 0){
 				try{
-					lstTL	= [SELECT MEGAUser__r.Name, CustomUserName__c, MEGAProfile__r.Name, TrialRequest__r.MEGAEnvironment__r.Name, TrialRequest__r.MEGAEnvironment__r.Server__r.Name, 
-						 TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c, TrialRequest__r.StartDate__c, TrialRequest__r.EndDate__c, Language__c, CommandLine__c, Email__c 
+					lstTL	= [SELECT  User__r.Name, CustomUserName__c,  Profile__r.Name, TrialRequest__r. Environment__r.Name, TrialRequest__r. Environment__r.Server__r.Name, 
+						 TrialRequest__r. Environment__r.Server__r.Platform__c, TrialRequest__r.StartDate__c, TrialRequest__r.EndDate__c, Language__c, CommandLine__c, Email__c 
 						FROM TrialLogin__c WHERE (ID =:p1 OR TrialRequest__c =:p1) ];
 				}
 				catch(QueryException e){
 					System.debug('##### makePostCallout on TrialLogin__c ##### Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage());
 				}
-				sServer = 'https://' + lstTL[0].TrialRequest__r.MEGAEnvironment__r.Server__r.Name;
+				sServer = 'https://' + lstTL[0].TrialRequest__r. Environment__r.Server__r.Name;
 				// Method : UpdateUserPassword
-				if(lstTL[0].TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c == 'Free Trial' || lstTL[0].TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c == 'POC' || lstTL[0].TrialRequest__r.MEGAEnvironment__r.Server__r.Platform__c == 'Project'){
+				if(lstTL[0].TrialRequest__r. Environment__r.Server__r.Platform__c == 'Free Trial' || lstTL[0].TrialRequest__r. Environment__r.Server__r.Platform__c == 'POC' || lstTL[0].TrialRequest__r. Environment__r.Server__r.Platform__c == 'Project'){
 					if(p2 == 1){
 						sJsonBody = '{"InputUserList":[';
 						for(TrialLogin__c tl : lstTL){
-							sMEGAEnv = '"Env":"'+(tl.TrialRequest__r.MEGAEnvironment__r.Name != null ? tl.TrialRequest__r.MEGAEnvironment__r.Name : '')+'"';
+							sEnv = '"Env":"'+(tl.TrialRequest__r. Environment__r.Name != null ? tl.TrialRequest__r. Environment__r.Name : '')+'"';
 							if(tl.CustomUserName__c != null)
-								sMEGAUsr = '"User":"'+tl.CustomUserName__c+'"';
+								sUsr = '"User":"'+tl.CustomUserName__c+'"';
 							else
-								sMEGAUsr = '"User":"'+(tl.MEGAUser__r.Name != null ? tl.MEGAUser__r.Name : '')+'"';
-							sJsonBody += '{' + sMEGAEnv + ',' + sMEGAUsr + '},';
+								sUsr = '"User":"'+(tl. User__r.Name != null ? tl. User__r.Name : '')+'"';
+							sJsonBody += '{' + s Env + ',' + s Usr + '},';
 						}
 					}
 					// Method : UpdateUser
 					else{
 						String sCmdLine;
-						String sMEGAPrf;
+						String sPrf;
 						String sLang;
 						String sTypeExe;
 						String sStartD;
@@ -91,17 +91,17 @@ global class WSRestCalloutClass {
 
 						sJsonBody = '{"InputUserListDetailed":[';
 						for(TrialLogin__c tl : lstTL){
-							sMEGAEnv = '"Env":"'+(tl.TrialRequest__r.MEGAEnvironment__r.Name != null ? tl.TrialRequest__r.MEGAEnvironment__r.Name : '')+'"';
+							sEnv = '"Env":"'+(tl.TrialRequest__r. Environment__r.Name != null ? tl.TrialRequest__r. Environment__r.Name : '')+'"';
 							if(tl.CustomUserName__c != null)
-								sMEGAUsr = '"User":"'+tl.CustomUserName__c+'"';
+								sUsr = '"User":"'+tl.CustomUserName__c+'"';
 							else
-								sMEGAUsr = '"User":"'+(tl.MEGAUser__r.Name != null ? tl.MEGAUser__r.Name : '')+'"';
+								sUsr = '"User":"'+(tl. User__r.Name != null ? tl. User__r.Name : '')+'"';
 							sCmdLine = '"CommandLine":"'+(tl.CommandLine__c != null ? tl.CommandLine__c : '')+'"';
-							sMEGAPrf = '"ProfileAssignment":"'+(tl.MEGAProfile__r.Name != null ? tl.MEGAProfile__r.Name : '')+'"';
+							sPrf = '"ProfileAssignment":"'+(tl. Profile__r.Name != null ? tl. Profile__r.Name : '')+'"';
 							sLang	= '"Language":"'+(tl.Language__c != null ? tl.Language__c : '')+'"';
 							sStartD	= '"StartDate":"'+(tl.TrialRequest__r.StartDate__c != null ? String.valueOf(tl.TrialRequest__r.StartDate__c)+ ' 00:00:00' : '')+'"';
 							sEndD	= '"EndDate":"'+(tl.TrialRequest__r.EndDate__c != null ? String.valueOf(tl.TrialRequest__r.EndDate__c)+ ' 00:00:00' : '')+'"';
-							sJsonBody += '{' + sMEGAEnv + ',' + sMEGAUsr + ',' + sCmdLine + ',' + sMEGAPrf + ',' + sStartD + ',' + sEndD + ',' + sLang + ',' + sTypeExe + ',"ChangePwd":"0"},';
+							sJsonBody += '{' + s Env + ',' + s Usr + ',' + sCmdLine + ',' + s Prf + ',' + sStartD + ',' + sEndD + ',' + sLang + ',' + sTypeExe + ',"ChangePwd":"0"},';
 						}
 					}
 				sJsonBody.removeEndIgnoreCase(',');
@@ -120,18 +120,18 @@ global class WSRestCalloutClass {
 		
 			else if(p2 == 5 || p2 == 4){
 				try{
-					lstME = [ SELECT Name, Server__r.Name, Server__r.Platform__c, Password__c FROM MEGAEnvironment__c WHERE (ID =:p1 OR Server__c =:p1) ];
+					lstME = [ SELECT Name, Server__r.Name, Server__r.Platform__c, Password__c FROM  Environment__c WHERE (ID =:p1 OR Server__c =:p1) ];
 				}
 				catch(QueryException e){
-					System.debug(LoggingLevel.error,'##### makePostCallout on MEGAEnvironment__c ##### Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage());
+					System.debug(LoggingLevel.error,'##### makePostCallout on  Environment__c ##### Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage());
 				}
 
 				if(lstME[0].Server__r.Platform__c == 'Free Trial' || lstME[0].Server__r.Platform__c == 'POC' || lstME[0].Server__r.Platform__c == 'Project'){
 					sServer = 'https://' + lstME[0].Server__r.Name;
 					sJsonBody = '{"InputEnvList":[';
-					for(MEGAEnvironment__c me : lstME){
-						sMEGAEnv = '"Env":"'+(me.Name != null ? me.Name : '')+'"';
-						sJsonBody += '{' + sMEGAEnv + '},';
+					for( Environment__c me : lstME){
+						sEnv = '"Env":"'+(me.Name != null ? me.Name : '')+'"';
+						sJsonBody += '{' + s Env + '},';
 					}
 					sJsonBody.removeEndIgnoreCase(',');
 					sJsonBody += ']}';
@@ -141,7 +141,7 @@ global class WSRestCalloutClass {
 					sMsgAlert = 'You don\'t have the rights to perform a request on a server in use by customers (Platforms available are : Free Trial / POC / Project).';
 				}
 				System.debug(LoggingLevel.error,'##### mapJsonBody  #####'+sJsonBody);
-				System.debug(LoggingLevel.error,'##### MEGAEnvironment__c lstME   #####'+lstME+' ##### '+sServer);
+				System.debug(LoggingLevel.error,'#####  Environment__c lstME   #####'+lstME+' ##### '+sServer);
 			}
 
 			
@@ -167,7 +167,7 @@ global class WSRestCalloutClass {
 				if(lstME.size() > 0){
 					for(AutoToolsResponse atc : lstAtc){
 						sMsgAlert += atc.Env + ': ' + atc.Details + '\n';
-						for(MEGAEnvironment__c me : lstME){
+						for( Environment__c me : lstME){
 							if(!setMEId.contains(me.Id) && me.Name != null & atc.Env == me.Name){
 		
 								ContentNote cnt = new ContentNote();
@@ -266,10 +266,10 @@ global class WSRestCalloutClass {
 
 	private static List<AutoToolsResponse> senRequest(String sReqBody, String sReqEndP) {
 		List<AutoToolsResponse> lstAtc		= new List<AutoToolsResponse>();
-		AutoToolsResponse sObjatc			= new AutoToolsResponse();
-		Http http							= new Http();
-		HttpRequest request					= new HttpRequest();
-		HttpResponse response				= new HttpResponse();
+		AutoToolsResponse sObjatc		= new AutoToolsResponse();
+		Http http				= new Http();
+		HttpRequest request			= new HttpRequest();
+		HttpResponse response			= new HttpResponse();
 		String sResp;
 
 		// Build HTTPRequest URL
