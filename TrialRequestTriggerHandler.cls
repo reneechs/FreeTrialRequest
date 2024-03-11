@@ -4,194 +4,191 @@
 ************************************************************************************************************************************/
 
 public class TrialRequestTriggerHandler {
-    
-	   
-	/*********************************************************************************************
-	*@Description :  AfterInsert event on 'TrialRequest' sObject trigger this method                                                                                    
-	*********************************************************************************************/    
+       
+/*********************************************************************************************
+*@Description :  AfterInsert event on 'TrialRequest' sObject trigger this method                                                                                    
+*********************************************************************************************/    
 
-    public override void afterInsert() {
-		if( !MEGATriggerFramework.isBypassed('TR_AFTER_INSERT') && trigger.isInsert && trigger.isAfter ){
+public override void afterInsert() {
+	if( !MEGATriggerFramework.isBypassed('TR_AFTER_INSERT') && trigger.isInsert && trigger.isAfter ){
 		    
-			Map<String,String> mapfieldname	= new Map<String, String>();
-			List <String> Comments = new List<String>();
-			List <TrialRequest__c> ListTrial = new List <TrialRequest__c> ();
-			List<TrialRequest__c> lstNewTR = Trigger.new;
-			List <TrialLogin__c> lstTRLogin = new List <TrialLogin__c> ();
-			List<MEGAEnvironment__c> lstMega1 = new List <MEGAEnvironment__c> ();
-			Map<String,MEGAUser__c> mapusr	= new Map<String, MEGAUser__c>();
-			Set<ID> setTR = new Set<Id>();
-			Set<ID> setCont = new Set<Id>();
-			Set<ID> setMega = new Set<Id>();
-			List<ID> TRIDs = new List<ID>(); 
+		Map<String,String> mapfieldname	= new Map<String, String>();
+		List <String> Comments = new List<String>();
+		List <TrialRequest__c> ListTrial = new List <TrialRequest__c> ();
+		List<TrialRequest__c> lstNewTR = Trigger.new;
+		List <TrialLogin__c> lstTRLogin = new List <TrialLogin__c> ();
+		List<MEGAEnvironment__c> lstMega1 = new List <MEGAEnvironment__c> ();
+		Map<String,MEGAUser__c> mapusr	= new Map<String, MEGAUser__c>();
+		Set<ID> setTR = new Set<Id>();
+		Set<ID> setCont = new Set<Id>();
+		Set<ID> setMega = new Set<Id>();
+		List<ID> TRIDs = new List<ID>(); 
 
 				
-			for (TrialRequest__c tr : lstNewTR) {
+		for (TrialRequest__c tr : lstNewTR) {
 
-				If (tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && (tr.Type__c == 'Free Trial' || tr.Type__c == 'POC' || tr.Type__c == 'Project') ) {
+			If (tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && (tr.Type__c == 'Free Trial' || tr.Type__c == 'POC' || tr.Type__c == 'Project') ) {
 					
-					String type='TrialRequest__c';
+				String type='TrialRequest__c';
 
-					Map<String, Schema.SObjectType> schemaMap = Schema.getGlobalDescribe();
-					Schema.SObjectType leadSchema = schemaMap.get(type);
-					Map<String, Schema.SObjectField> fieldMap = leadSchema.getDescribe().fields.getMap();
+				Map<String, Schema.SObjectType> schemaMap = Schema.getGlobalDescribe();
+				Schema.SObjectType leadSchema = schemaMap.get(type);
+				Map<String, Schema.SObjectField> fieldMap = leadSchema.getDescribe().fields.getMap();
 
-					//Retrieve label and fieldname of object
-					for (String fieldName: fieldMap.keySet()) {
-						string Label = fieldMap.get(fieldName).getDescribe().getLabel();
-						mapfieldname.put(Label,fieldname);					
+				//Retrieve label and fieldname of object
+				for (String fieldName: fieldMap.keySet()) {
+					string Label = fieldMap.get(fieldName).getDescribe().getLabel();
+					mapfieldname.put(Label,fieldname);					
+				}
+
+				TrialRequest__c TRL = new TrialRequest__c (); 
+
+				//Retrieve Username related to products
+				List<MEGAUser__c> lstUser = new List<MEGAUser__c>([SELECT Id, Name, Products__c, MEGAProfile__c,Email__c,CurrencyIsoCode,CommandLine__c FROM MEGAUser__c where Products__c <> null]);
+				for (MEGAUser__c usr1 : lstUser){
+					List <String> pdt = new List<String>(usr1.products__c.split(';'));
+					for (String pdt1 : pdt) {
+						mapusr.put(pdt1.trim(),usr1);
 					}
+				}
+				System.debug('****Usr Map='+mapusr);
 
-					TrialRequest__c TRL = new TrialRequest__c (); 
+				If (tr.Contact__c != null) {
+					setCont.add(tr.Contact__c);
 
-					//Retrieve Username related to products
-					List<MEGAUser__c> lstUser = new List<MEGAUser__c>([SELECT Id, Name, Products__c, MEGAProfile__c,Email__c,CurrencyIsoCode,CommandLine__c FROM MEGAUser__c where Products__c <> null]);
-					for (MEGAUser__c usr1 : lstUser){
-						List <String> pdt = new List<String>(usr1.products__c.split(';'));
-						for (String pdt1 : pdt) {
-							mapusr.put(pdt1.trim(),usr1);
-						}
-					}
-					System.debug('****Usr Map='+mapusr);
-
-					If (tr.Contact__c != null) {
-						setCont.add(tr.Contact__c);
-
-						List<Contact> lstContact = new List<Contact>([SELECT Id, Name, AccountId, Account.OwnerId, Account.ServicesDirector__c, Account.AccountOwnerSDR__c FROM Contact 
+					List<Contact> lstContact = new List<Contact>([SELECT Id, Name, AccountId, Account.OwnerId, Account.ServicesDirector__c, Account.AccountOwnerSDR__c FROM Contact 
 					    																	  WHERE Id IN : setCont]);					
-						// Retrieve email receipients information from contact 
-						If (lstContact.size() > 0) {
-							for (Contact c : lstContact ){
-								TRIDs.add(tr.id);
-								TRL.Account__c = c.AccountId;
-								TRL.SalesRepresentative__c = c.Account.OwnerId;
-								TRL.ServicesDirector__c = c.Account.ServicesDirector__c;
-								TRL.Account_SDR__c = c.Account.AccountOwnerSDR__c;
-							}
+					// Retrieve email receipients information from contact 
+					If (lstContact.size() > 0) {
+						for (Contact c : lstContact ){
+							TRIDs.add(tr.id);
+							TRL.Account__c = c.AccountId;
+							TRL.SalesRepresentative__c = c.Account.OwnerId;
+							TRL.ServicesDirector__c = c.Account.ServicesDirector__c;
+							TRL.Account_SDR__c = c.Account.AccountOwnerSDR__c;
 						}
 					}
+				}
 
-					If (tr.Type__c == 'Free Trial' && tr.Comments__c != null) {
+				If (tr.Type__c == 'Free Trial' && tr.Comments__c != null) {
 
-							List<MEGAEnvironment__c> lstMega = new List<MEGAEnvironment__c>([SELECT Id, Name, Status__c, Version__c, Server__r.Name, Server__r.Version__r.Name , Server__r.Version__r.CreatedDate, Password__c FROM MEGAEnvironment__c 
+					List<MEGAEnvironment__c> lstMega = new List<MEGAEnvironment__c>([SELECT Id, Name, Status__c, Version__c, Server__r.Name, Server__r.Version__r.Name , Server__r.Version__r.CreatedDate, Password__c FROM MEGAEnvironment__c 
 																							  WHERE Status__c = 'FREE' AND Server__r.Status__c = 'UP' AND Server__r.Platform__c = 'Free Trial' order by Server__r.Version__r.Release_date__c DESC LIMIT 1]);					
-							If (lstMega.size() > 0) {
-								TRL.MEGAEnvironment__c = lstMega[0].Id;
-						
-								SetMega.add(lstMega[0].Id); 
-							}
-							System.debug('***MEGA environment SetMega ' + SetMega + tr.id);	
+					If (lstMega.size() > 0) {
+						TRL.MEGAEnvironment__c = lstMega[0].Id;						
+						SetMega.add(lstMega[0].Id); 
+					}
+					System.debug('***MEGA environment SetMega ' + SetMega + tr.id);	
 
-							//To resolve issue of same Mega Environment assigned to 2 prospect
-							for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
-								Mega.Status__c = 'BUSY';
-								Mega.Free_Trial_Request_Closed__c = false;
-								lstMega1.add(Mega);
-							}	
-							System.debug('***MEGA environment lstMega1' + lstMega1);		
+					//To resolve issue of same Mega Environment assigned to 2 prospect
+					for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
+						Mega.Status__c = 'BUSY';
+						Mega.Free_Trial_Request_Closed__c = false;
+						lstMega1.add(Mega);
+					}	
+					System.debug('***MEGA environment lstMega1' + lstMega1);		
 
-							//Retrieve comments that stores products selected delimited by ';' into individual strings
-							Comments = tr.Comments__c.split(';');
-							System.debug('##Comments List='+Comments);// list of all field API name
+					//Retrieve comments that stores products selected delimited by ';' into individual strings
+					Comments = tr.Comments__c.split(';');
+					System.debug('##Comments List='+Comments);// list of all field API name
 
-							//Compare each comments string with mapfieldname and assigned it to true if there is a match
-							If (mapusr.size() > 0) {	
-								for (string str1 : Comments) {		
-									str1 = str1.trim();	
-									If (mapfieldname.containsKey(str1)){					
-										TRL.Id = tr.Id;			
-										TRL.put(mapfieldname.get(str1),true);	
+					//Compare each comments string with mapfieldname and assigned it to true if there is a match
+					If (mapusr.size() > 0) {	
+						for (string str1 : Comments) {		
+							str1 = str1.trim();	
+							If (mapfieldname.containsKey(str1)){					
+								TRL.Id = tr.Id;			
+								TRL.put(mapfieldname.get(str1),true);	
 										
-										//Create Trial login of each product with username extracted from Mega User object
-										for (string str2 : mapusr.keySet()) {
-											if (str2 == str1) {
-												TrialLogin__c TrLogin = new TrialLogin__c ();
-												TrLogin.MEGAUser__c = mapusr.get(str2).Id;
-												TrLogin.TrialRequest__c = tr.Id;
-												TrLogin.CustomUserName__c = mapusr.get(str2).Name;
-												TrLogin.Language__c = tr.Language__c;
-												TrLogin.MEGAProfile__c = mapusr.get(str2).MEGAProfile__c;
-												TrLogin.Email__c = mapusr.get(str2).Email__c;
-												TrLogin.CurrencyIsoCode = mapusr.get(str2).CurrencyIsoCode;
-												TrLogin.CommandLine__c = mapusr.get(str2).CommandLine__c;
-												lstTRLogin.add(TRLogin);
-												System.debug('####TRLogin='+TRLogin);
-											}
-										}
-									}																											
+								//Create Trial login of each product with username extracted from Mega User object
+								for (string str2 : mapusr.keySet()) {
+									if (str2 == str1) {
+										TrialLogin__c TrLogin = new TrialLogin__c ();
+										TrLogin.MEGAUser__c = mapusr.get(str2).Id;
+										TrLogin.TrialRequest__c = tr.Id;
+										TrLogin.CustomUserName__c = mapusr.get(str2).Name;
+										TrLogin.Language__c = tr.Language__c;
+										TrLogin.MEGAProfile__c = mapusr.get(str2).MEGAProfile__c;
+										TrLogin.Email__c = mapusr.get(str2).Email__c;
+										TrLogin.CurrencyIsoCode = mapusr.get(str2).CurrencyIsoCode;
+										TrLogin.CommandLine__c = mapusr.get(str2).CommandLine__c;
+										lstTRLogin.add(TRLogin);
+										System.debug('####TRLogin='+TRLogin);
+									}
 								}
-							}
-					
-							//Revert Free trial to approval process
-							If (lstTRLogin.size() > 0 && lstMega.size() > 0 && tr.Status__c == 'Draft') {
-							
-								TRL.EndDate__c = tr.StartDate__c + 30;
-							}
-
-							ListTrial.add(TRL);
-							SetTR.add(tr.Id); 
-						
-					}
-															
-				}
-				MEGATriggerFramework.bypass('TR_AFTER_UPDATE');
-			}
-			
-			// Update the lists into system 
-			if (ListTrial.size() > 0){
-				try {
-					update ListTrial;
-				} 
-				catch (system.Dmlexception e) {
-					system.debug ('**Exception for TrialRequest Insert for Hopex item ' + e);
-				}
-
-				if(lstTRLogin.size() > 0){
-					try {
-						insert lstTRLogin;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Trial Login Insert for Hopex item ' + e);
-					}
-				}
-
-				If (lstMega1.size() > 0) {
-					try {
-						update lstMega1;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Mega Environment ' + e);
-					}				
-				}
-
-				if(TRIDs.size() > 0) { 
-					TrialRequestClass.updateOwnership(TRIDs,setCont); 
-				} 
-				
-				// Auto approval process submission
-				if (setTR.size() > 0) {
-					List <TrialRequest__c> lstTR = new List <TrialRequest__c> ([Select Id, Type__c from TrialRequest__c where Id IN: setTR]); 
-				
-					for(TrialRequest__c tr1 : lstTR){	
-						if (tr1.Type__c	== 'Free Trial') { 		
-							Approval.ProcessSubmitRequest req = new Approval.ProcessSubmitRequest();
-							req.setObjectId(tr1.id);
-							List <User> SF = New List <User>([Select Id from User where Name = 'Salesforce Admin' limit 1]);
-							If (SF.size() > 0) 
-								req.setSubmitterId(SF[0].Id);
-							Approval.ProcessResult result =  Approval.process(req);		
-							System.debug('TEST SUBMIT');			
+							}																											
 						}
 					}
-				}
-			}	
+					
+					//Revert Free trial to approval process
+					If (lstTRLogin.size() > 0 && lstMega.size() > 0 && tr.Status__c == 'Draft') {		
+						TRL.EndDate__c = tr.StartDate__c + 30;
+					}
 
+					ListTrial.add(TRL);
+					SetTR.add(tr.Id); 
+						
+			}
+															
 		}
+		MEGATriggerFramework.bypass('TR_AFTER_UPDATE');
 	}
+			
+	// Update the lists into system 
+	if (ListTrial.size() > 0){
+		try {
+			update ListTrial;
+		} 
+		catch (system.Dmlexception e) {
+			system.debug ('**Exception for TrialRequest Insert for Hopex item ' + e);
+		}
 
-	/*********************************************************************************************
-	*@Description : AfterUpdate event on 'TrialRequest' sObject trigger this method                                                                                 
-	*********************************************************************************************/    
+		if(lstTRLogin.size() > 0){
+			try {
+				insert lstTRLogin;
+			} 
+			catch (system.Dmlexception e) {
+				system.debug ('**Exception for Trial Login Insert for Hopex item ' + e);
+			}
+		}
+
+		If (lstMega1.size() > 0) {
+			try {
+				update lstMega1;
+			} 
+			catch (system.Dmlexception e) {
+				system.debug ('**Exception for Mega Environment ' + e);
+			}				
+		}
+
+		if(TRIDs.size() > 0) { 
+			TrialRequestClass.updateOwnership(TRIDs,setCont); 
+		} 
+				
+		// Auto approval process submission
+		if (setTR.size() > 0) {
+			List <TrialRequest__c> lstTR = new List <TrialRequest__c> ([Select Id, Type__c from TrialRequest__c where Id IN: setTR]); 
+				
+			for(TrialRequest__c tr1 : lstTR){	
+				if (tr1.Type__c	== 'Free Trial') { 		
+					Approval.ProcessSubmitRequest req = new Approval.ProcessSubmitRequest();
+					req.setObjectId(tr1.id);
+					List <User> SF = New List <User>([Select Id from User where Name = 'Salesforce Admin' limit 1]);
+					If (SF.size() > 0) 
+						req.setSubmitterId(SF[0].Id);
+					Approval.ProcessResult result =  Approval.process(req);		
+					System.debug('TEST SUBMIT');			
+				}
+				}
+			}
+		}	
+
+	}
+}
+
+/*********************************************************************************************
+*@Description : AfterUpdate event on 'TrialRequest' sObject trigger this method                                                                                 
+*********************************************************************************************/    
 	
     public override void afterUpdate() {
         if( !MEGATriggerFramework.isBypassed('TR_AFTER_UPDATE') && trigger.isUpdate && trigger.isAfter ){
@@ -297,118 +294,117 @@ public class TrialRequestTriggerHandler {
 															
 					if(lstLoginAdd.size() > 0 || lstLoginDel.size() > 0)
 						ListTrial.add(TRL);
-
                 } 
 				 
 
-				// FOR TRIAL REQUEST WITH 'APPROVED' status AND "Standard Trial" type
-				else 
-					if( (tr.Type__c == 'POC' && tr.Status__c == sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && tr.POC_T_C_Accepted__c == true && mapOldTR.get(tr.Id).POC_T_C_Accepted__c == false) || 
-				         ((tr.Type__c == 'Free Trial' || tr.Type__c == 'Project') && tr.Status__c == sTRStatusApp && mapOldTR.get(tr.Id).Status__c != sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) ) {
-							setSTR.add(tr.Id); 
-						 }
-				else 
-					if (tr.Type__c == 'Free Trial' && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) {
+		// FOR TRIAL REQUEST WITH 'APPROVED' status AND "Standard Trial" type
+		else 
+			if( (tr.Type__c == 'POC' && tr.Status__c == sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && tr.POC_T_C_Accepted__c == true && mapOldTR.get(tr.Id).POC_T_C_Accepted__c == false) || 
+				((tr.Type__c == 'Free Trial' || tr.Type__c == 'Project') && tr.Status__c == sTRStatusApp && mapOldTR.get(tr.Id).Status__c != sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) ) {
+					setSTR.add(tr.Id); 
+			}
+			else 
+			if (tr.Type__c == 'Free Trial' && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) {
 						
-						if (tr.Status__c == sTRStatusRej && mapOldTR.get(tr.Id).Status__c != sTRStatusRej) {
+				if (tr.Status__c == sTRStatusRej && mapOldTR.get(tr.Id).Status__c != sTRStatusRej) {
 						
-							If (tr.MEGAEnvironment__c != null) {
-								setMega.add(tr.MEGAEnvironment__c);
-								lstEnvId.add(tr.MEGAEnvironment__c);
+					If (tr.MEGAEnvironment__c != null) {
+						setMega.add(tr.MEGAEnvironment__c);
+						lstEnvId.add(tr.MEGAEnvironment__c);
 
-								for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
-									Mega.Status__c = 'FREE';
-									Mega.Free_Trial_Request_Closed__c = True;
+						for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
+							Mega.Status__c = 'FREE';
+							Mega.Free_Trial_Request_Closed__c = True;
 								
-									lstMega.add(Mega);
-									System.debug('***MEGA environment after rejection ' + lstMega);
-								}
+								lstMega.add(Mega);
+								System.debug('***MEGA environment after rejection ' + lstMega);
 							}
 						}
-						// To reassign Mega Env after resubmission
-						else 
-							if (tr.Status__c == sTRStatusSub && mapOldTR.get(tr.Id).Status__c == sTRStatusRej) {
-								List<MEGAEnvironment__c> lstMega1 = new List<MEGAEnvironment__c>([SELECT Id, Name, Status__c, Version__c, Server__r.Name, Server__r.Version__r.Name , Server__r.Version__r.CreatedDate, Password__c FROM MEGAEnvironment__c 
+					}
+					// To reassign Mega Env after resubmission
+					else 
+						if (tr.Status__c == sTRStatusSub && mapOldTR.get(tr.Id).Status__c == sTRStatusRej) {
+							List<MEGAEnvironment__c> lstMega1 = new List<MEGAEnvironment__c>([SELECT Id, Name, Status__c, Version__c, Server__r.Name, Server__r.Version__r.Name , Server__r.Version__r.CreatedDate, Password__c FROM MEGAEnvironment__c 
 																								  WHERE Status__c = 'FREE' AND Server__r.Status__c = 'UP' AND Server__r.Platform__c = 'Free Trial' order by Server__r.Version__r.Release_date__c DESC LIMIT 1]);					
-								If (lstMega1.size() > 0) {
-									TrialRequest__c TR1 = new TrialRequest__c (); 	
-									TR1.id = tr.Id;
-									TR1.MEGAEnvironment__c = lstMega1[0].Id;
-									SetMega.add(lstMega1[0].Id); 
-									ListTrial.add(TR1);
-								}
-								System.debug('***MEGA environment SetMega after resubmission ' + SetMega + tr.id);	
-
-								for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
-									Mega.Status__c = 'BUSY';
-									Mega.Free_Trial_Request_Closed__c = false;
-									lstMega.add(Mega);
-								}	
-								System.debug('***MEGA environment lstMega after resubmission' + lstMega);	
-								
-								for (TrialLogin__c TRL1 : [SELECT Id, Password__c FROM TrialLogin__c  WHERE TrialRequest__c IN: setTR]) {
-									TRL1.Password__c = lstMega1[0].Password__c;
-									lstLoginChg.add(TRL1);
-								}
-								System.debug('***MEGA environment lstMega after resubmission' + lstMega);		
-
+							If (lstMega1.size() > 0) {
+								TrialRequest__c TR1 = new TrialRequest__c (); 	
+								TR1.id = tr.Id;
+								TR1.MEGAEnvironment__c = lstMega1[0].Id;
+								SetMega.add(lstMega1[0].Id); 
+								ListTrial.add(TR1);
 							}
+							System.debug('***MEGA environment SetMega after resubmission ' + SetMega + tr.id);	
+
+							for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
+								Mega.Status__c = 'BUSY';
+								Mega.Free_Trial_Request_Closed__c = false;
+								lstMega.add(Mega);
+							}	
+							System.debug('***MEGA environment lstMega after resubmission' + lstMega);	
+								
+							for (TrialLogin__c TRL1 : [SELECT Id, Password__c FROM TrialLogin__c  WHERE TrialRequest__c IN: setTR]) {
+								TRL1.Password__c = lstMega1[0].Password__c;
+								lstLoginChg.add(TRL1);
+							}
+							System.debug('***MEGA environment lstMega after resubmission' + lstMega);		
+
+						}
 			        }
 
             }
 
-			// FREE TRIAL PROJECT UPDATE BEGIN
-			if(ListTrial.size() > 0){
+		// FREE TRIAL PROJECT UPDATE BEGIN
+		if(ListTrial.size() > 0){
+			try {
+				update ListTrial;
+			} 
+			catch (system.Dmlexception e) {
+				system.debug ('**Exception for TrialRequest Update  ' + e);
+			}
+
+			if(lstLoginAdd.size() > 0){
 				try {
-					update ListTrial;
+					insert lstLoginAdd;
 				} 
 				catch (system.Dmlexception e) {
-					system.debug ('**Exception for TrialRequest Update  ' + e);
+					system.debug ('**Exception for Trial Login Create  ' + e);
 				}
+			} 
 
-				if(lstLoginAdd.size() > 0){
-					try {
-						insert lstLoginAdd;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Trial Login Create  ' + e);
-					}
+			if (lstLoginDel.size() > 0){
+				try {
+					delete lstLoginDel;
 				} 
-
-				if (lstLoginDel.size() > 0){
-					try {
-						delete lstLoginDel;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Trial Login Delete  ' + e);
-					}
+				catch (system.Dmlexception e) {
+					system.debug ('**Exception for Trial Login Delete  ' + e);
 				}
-				// FREE TRIAL PROJECT UPDATE END
 			}
+			// FREE TRIAL PROJECT UPDATE END
+		}
 			
-			If (lstMega.size() > 0) {
-					try {
-						update lstMega;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Mega Environment after rejection or resubmission' + e);
-					}				
-			}
+		If (lstMega.size() > 0) {
+			try {
+				update lstMega;
+			} 
+			catch (system.Dmlexception e) {
+				system.debug ('**Exception for Mega Environment after rejection or resubmission' + e);
+			}				
+		}
 
-			If (lstLoginChg.size() > 0) {
-					try {
-						update lstLoginChg;
-					} 
-					catch (system.Dmlexception e) {
-						system.debug ('**Exception for Trial Login after resubmission' + e);
-					}				
-			}
+		If (lstLoginChg.size() > 0) {
+			try {
+				update lstLoginChg;
+			} 
+			catch (system.Dmlexception e) {
+				system.debug ('**Exception for Trial Login after resubmission' + e);
+			}				
+		}
 
-			try{
+		try{
 
-				//Call EmailTemplate class to prepare email notification to be sent to customer/prospect
+			//Call EmailTemplate class to prepare email notification to be sent to customer/prospect
 	
-                if(setSTR != null && setSTR.size() > 0){
+                	if(setSTR != null && setSTR.size() > 0){
                     EmailTemplateClass.prepareBulkUpdate(UtilityClass.getTrialLogin(setSTR));
                 }
 
