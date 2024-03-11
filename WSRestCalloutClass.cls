@@ -18,7 +18,7 @@ global class WSRestCalloutClass {
 	}
 
 	// Calling webservice using @invocable method in order to be called from process builder 
-	@InvocableMethod(label='Invoke Post Callout' description='To reinitialise environment.')
+	@InvocableMethod(label='Invoke Post Callout')
 	public static void invokemakepostcall(List <ID> EnvId, int Mtd){
 		System.debug(LoggingLevel.Error,'##### EnvID ### '+ EnvId);
 		makePostCallout(EnvId,Mtd);

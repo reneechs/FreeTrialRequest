@@ -5,52 +5,7 @@
 
 public class TrialRequestTriggerHandler {
     
-	/*********************************************************************************************
-	*@Description : beforeInsert event on 'TrialRequest' sObject trigger this method                                                                            
-	*********************************************************************************************/    
-
-    public override void beforeInsert() {
-        if( !MEGATriggerFramework.isBypassed('TR_BEFORE_INSERT') && trigger.isInsert && trigger.isBefore ){
-            List<TrialRequest__c> lstNewTR				= Trigger.new;
-			List<TrialRequest__c> lstTRTT				= new List<TrialRequest__c>();
-			List<Event> lstEvt							= new List<Event>();
-			Map<ID, ID> mapCHPV							= new Map<ID, ID>();
-			Date dMinSD									= Date.today().addYears(1);
-			Date dMaxED									= Date.today();
-			PageReference prError						= null;
-	
-			
-		
-			// GET MIN Start Date & MAX Last Date
-			try{
-				for (TrialRequest__c tr : lstNewTR) {
-					if(tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_TRAIN){
-						mapCHPV.put(tr.Campaign__c, tr.HopexProductVersion__c);
-						dMinSD = (dMinSD >= tr.StartDate__c ? tr.StartDate__c - 1 : dMinSD);
-						dMaxED = (dMaxED <= tr.EndDate__c ? tr.EndDate__c.addDays(1) : dMaxED);
-						tr.NumberOfTrainees__c = 10;
-						tr.NumberOfTrainers__c = 1;
-						lstTRTT.add(tr);
-					}
-					
-					/* REF-1838 RCA 17032020 Remove coding relating to Mega environment, Hopex Repository parameter and Data Center fields		
-					if(lstTRTT.size() > 0){
-						// Get Events which happen at the same time than Training Trial Request
-						lstEvt = [SELECT Id, StartDateTime, EndDateTime, ShowAs, WhatId FROM Event WHERE OwnerId =:Label.CalendarTrainingEnvID  AND ((StartDateTime >= :dMinSD AND StartDateTime <= :dMaxED) OR (EndDateTime <= :dMaxED AND EndDateTime >= :dMinSD))];
-
-				
-						TrialRequestClass.SetMEGAEnvOnTrialFromAvailableServer(lstTRTT, lstEvt);
-
-						if(mapCHPV != null && mapCHPV.size() > 0)
-							TrialRequestClass.SetHopexReposParamOnTrialFromCamp(mapCHPV, lstTRTT);
-					}
-					*/
-				}
-			}
-			catch(Exception e){ lstNewTR[0].addError('Trigger beforeInsert on TrialRequest__c : Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage()); }
-				
-	    }
-    }
+	   
 	/*********************************************************************************************
 	*@Description :  AfterInsert event on 'TrialRequest' sObject trigger this method                                                                                    
 	*********************************************************************************************/    
@@ -73,7 +28,6 @@ public class TrialRequestTriggerHandler {
 				
 			for (TrialRequest__c tr : lstNewTR) {
 
-				/* RCA 2019-11-20 REF-1797 FREE TRIAL PROJECT */
 				If (tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && (tr.Type__c == 'Free Trial' || tr.Type__c == 'POC' || tr.Type__c == 'Project') ) {
 					
 					String type='TrialRequest__c';
@@ -82,13 +36,15 @@ public class TrialRequestTriggerHandler {
 					Schema.SObjectType leadSchema = schemaMap.get(type);
 					Map<String, Schema.SObjectField> fieldMap = leadSchema.getDescribe().fields.getMap();
 
+					//Retrieve label and fieldname of object
 					for (String fieldName: fieldMap.keySet()) {
-						string Label = fieldMap.get(fieldName).getDescribe().getLabel();//It provides to get the object fields label.
+						string Label = fieldMap.get(fieldName).getDescribe().getLabel();
 						mapfieldname.put(Label,fieldname);					
 					}
 
 					TrialRequest__c TRL = new TrialRequest__c (); 
-					
+
+					//Retrieve Username related to products
 					List<MEGAUser__c> lstUser = new List<MEGAUser__c>([SELECT Id, Name, Products__c, MEGAProfile__c,Email__c,CurrencyIsoCode,CommandLine__c FROM MEGAUser__c where Products__c <> null]);
 					for (MEGAUser__c usr1 : lstUser){
 						List <String> pdt = new List<String>(usr1.products__c.split(';'));
@@ -103,15 +59,13 @@ public class TrialRequestTriggerHandler {
 
 						List<Contact> lstContact = new List<Contact>([SELECT Id, Name, AccountId, Account.OwnerId, Account.ServicesDirector__c, Account.AccountOwnerSDR__c FROM Contact 
 					    																	  WHERE Id IN : setCont]);					
-					
+						// Retrieve email receipients information from contact 
 						If (lstContact.size() > 0) {
 							for (Contact c : lstContact ){
-								//TRL.OwnerId = c.Account.OwnerId;
 								TRIDs.add(tr.id);
 								TRL.Account__c = c.AccountId;
 								TRL.SalesRepresentative__c = c.Account.OwnerId;
 								TRL.ServicesDirector__c = c.Account.ServicesDirector__c;
-								//REF-2035 RCA 5-5-20 To add in Account SDR
 								TRL.Account_SDR__c = c.Account.AccountOwnerSDR__c;
 							}
 						}
@@ -123,12 +77,12 @@ public class TrialRequestTriggerHandler {
 																							  WHERE Status__c = 'FREE' AND Server__r.Status__c = 'UP' AND Server__r.Platform__c = 'Free Trial' order by Server__r.Version__r.Release_date__c DESC LIMIT 1]);					
 							If (lstMega.size() > 0) {
 								TRL.MEGAEnvironment__c = lstMega[0].Id;
-								//TRL.Free_Trial_Password__c = lstMega[0].Password__c;
+						
 								SetMega.add(lstMega[0].Id); 
 							}
 							System.debug('***MEGA environment SetMega ' + SetMega + tr.id);	
 
-							//*REF-2012 7-May-20 RCA To resolve issue of same Mega Environment assigned to 2 prospect
+							//To resolve issue of same Mega Environment assigned to 2 prospect
 							for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
 								Mega.Status__c = 'BUSY';
 								Mega.Free_Trial_Request_Closed__c = false;
@@ -136,17 +90,19 @@ public class TrialRequestTriggerHandler {
 							}	
 							System.debug('***MEGA environment lstMega1' + lstMega1);		
 
+							//Retrieve comments that stores products selected delimited by ';' into individual strings
 							Comments = tr.Comments__c.split(';');
 							System.debug('##Comments List='+Comments);// list of all field API name
 
-						
+							//Compare each comments string with mapfieldname and assigned it to true if there is a match
 							If (mapusr.size() > 0) {	
 								for (string str1 : Comments) {		
 									str1 = str1.trim();	
 									If (mapfieldname.containsKey(str1)){					
 										TRL.Id = tr.Id;			
 										TRL.put(mapfieldname.get(str1),true);	
-																																								
+										
+										//Create Trial login of each product with username extracted from Mega User object
 										for (string str2 : mapusr.keySet()) {
 											if (str2 == str1) {
 												TrialLogin__c TrLogin = new TrialLogin__c ();
@@ -166,9 +122,9 @@ public class TrialRequestTriggerHandler {
 								}
 							}
 					
-							//REF-2035 RCA 5-5-20 Revert Free trial to approval process
+							//Revert Free trial to approval process
 							If (lstTRLogin.size() > 0 && lstMega.size() > 0 && tr.Status__c == 'Draft') {
-								//TRL.Status__c = 'Approved'; 
+							
 								TRL.EndDate__c = tr.StartDate__c + 30;
 							}
 
@@ -176,36 +132,12 @@ public class TrialRequestTriggerHandler {
 							SetTR.add(tr.Id); 
 						
 					}
-					else If (tr.type__c == 'POC' || tr.Type__c == 'Project') {
-						If(mapusr.size() > 0) {	
-							for (string str1 : mapusr.keySet()) {								
-								If (mapfieldname.containsKey(str1)) {
-									boolean curvalue = (boolean)tr.get(mapfieldname.get(str1));
-									If (curvalue == true) {					
-										TRL.Id = tr.Id;			
-										TRL.put(mapfieldname.get(str1),true);	
-										TrialLogin__c TrLogin = new TrialLogin__c ();
-										TrLogin.MEGAUser__c = mapusr.get(str1).Id;
-										TrLogin.TrialRequest__c = tr.Id;
-										TrLogin.CustomUserName__c = mapusr.get(str1).Name;
-										TrLogin.Language__c = tr.Language__c;
-										TrLogin.MEGAProfile__c = mapusr.get(str1).MEGAProfile__c;
-										TrLogin.Email__c = mapusr.get(str1).Email__c;
-										TrLogin.CurrencyIsoCode = mapusr.get(str1).CurrencyIsoCode;
-										TrLogin.CommandLine__c = mapusr.get(str1).CommandLine__c;
-										lstTRLogin.add(TRLogin);
-										System.debug('####TRLoginPOC='+lstTRLogin);
-									}
-								}
-							}
-						}	
-						ListTrial.add(TRL);																										
-					}
 															
 				}
 				MEGATriggerFramework.bypass('TR_AFTER_UPDATE');
 			}
-					
+			
+			// Update the lists into system 
 			if (ListTrial.size() > 0){
 				try {
 					update ListTrial;
@@ -236,6 +168,7 @@ public class TrialRequestTriggerHandler {
 					TrialRequestClass.updateOwnership(TRIDs,setCont); 
 				} 
 				
+				// Auto approval process submission
 				if (setTR.size() > 0) {
 					List <TrialRequest__c> lstTR = new List <TrialRequest__c> ([Select Id, Type__c from TrialRequest__c where Id IN: setTR]); 
 				
@@ -253,12 +186,9 @@ public class TrialRequestTriggerHandler {
 				}
 			}	
 
-			/*REF-2035 RCA 5-5-20 Revert Free trial to approval process
-			if(setTR != null && setTR.size() > 0){
-				EmailTemplateClass.prepareBulkUpdate(UtilityClass.getTrialLogin(setTR));
-			} */
 		}
 	}
+
 	/*********************************************************************************************
 	*@Description : AfterUpdate event on 'TrialRequest' sObject trigger this method                                                                                 
 	*********************************************************************************************/    
@@ -290,8 +220,7 @@ public class TrialRequestTriggerHandler {
 
 			for (TrialRequest__c tr : lstNewTR) {
 
-
-				/* RCA 2019-11-20 REF-1797 FREE TRIAL PROJECT BEGIN*/				
+			
 				If ( (checkRecursive.runOnce() || test.isRunningTest()) && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && (tr.Type__c == 'Free Trial' || tr.Type__c == 'POC' || tr.Type__c == 'Project')) {
 
 					String type='TrialRequest__c';
@@ -300,13 +229,15 @@ public class TrialRequestTriggerHandler {
 					Schema.SObjectType leadSchema = schemaMap.get(type);
 					Map<String, Schema.SObjectField> fieldMap = leadSchema.getDescribe().fields.getMap();
 
+					//Retrieve label and fieldname of object
 					for (String fieldName: fieldMap.keySet()) {
-						//System.debug('##Field API Name='+fieldName);// list of all field API name
-						string Label = fieldMap.get(fieldName).getDescribe().getLabel();//It provides to get the object fields label.
-						//System.debug('##Field Label ='+Label);// list of all field API name
+						
+						string Label = fieldMap.get(fieldName).getDescribe().getLabel();
+						
 						mapfieldname.put(Label,fieldname);					
 					}
-											
+					
+					//Retrieve Username related to products
 					List<MEGAUser__c> lstUser = new List<MEGAUser__c>([SELECT Id, Name, Products__c, MEGAProfile__c,Email__c,CurrencyIsoCode,CommandLine__c FROM MEGAUser__c where Products__c <> null]);
 					for (MEGAUser__c usr1 : lstUser){
 						List <String> pdt = new List<String>(usr1.products__c.split(';'));
@@ -314,7 +245,7 @@ public class TrialRequestTriggerHandler {
 							mapusr.put(pdt1.trim(),usr1);
 						}
 					}
-					//System.debug('****Usr Map After Update='+mapusr.keySet());
+					
 					
 					SetTR.add(tr.Id);     
 					 
@@ -322,11 +253,12 @@ public class TrialRequestTriggerHandler {
 					If(mapusr.size() > 0) {	
 						for (string str1 : mapusr.keySet()) {	
 							if (mapfieldname.get(str1) != null) {
-								//System.debug('Current value***='+tr.get(mapfieldname.get(str1)));
-								//System.debug('Old value***='+mapOldTR.get(tr.Id).get(mapfieldname.get(str1)));
+								
+								//compare current and old values of product matched with fieldname. If not the same, set to false. If same, set to true
 								boolean curvalue = (boolean)tr.get(mapfieldname.get(str1));
 								boolean oldvalue = (boolean)mapOldTR.get(tr.Id).get(mapfieldname.get(str1));
 							
+								//Create new trial login 
 								If (mapfieldname.containsKey(str1)) {
 									If (curvalue != oldvalue) {	
 										If (curvalue == true) {					
@@ -342,9 +274,10 @@ public class TrialRequestTriggerHandler {
 											TrLogin.CurrencyIsoCode = mapusr.get(str1).CurrencyIsoCode;
 											TrLogin.CommandLine__c = mapusr.get(str1).CommandLine__c;
 											lstLoginAdd.add(TRLogin);
-											//System.debug('####TRLoginAdd='+lstLoginAdd);
+											
 										}
-										else {							
+										else {		
+											//delete existing trial login that is not longer matching 					
 											TRL.Id = tr.Id;			
 											TRL.put(mapfieldname.get(str1),false);	
 											List <TrialLogin__c> lstLogin = [select Id, CustomUserName__c from TrialLogin__c where TrialRequest__c IN : SetTR];
@@ -353,7 +286,7 @@ public class TrialRequestTriggerHandler {
 													lstLoginDel.add(TRLog);
 												}
 											}
-											//System.debug('####TRLoginDel='+lstLoginDel);
+										
 										}
 									}
 
@@ -365,18 +298,10 @@ public class TrialRequestTriggerHandler {
 					if(lstLoginAdd.size() > 0 || lstLoginDel.size() > 0)
 						ListTrial.add(TRL);
 
-                } /* RCA 2019-11-20 REF-1797 FREE TRIAL PROJECT END*/
+                } 
 				 
-                /* FOR TRIAL REQUEST WITH 'APPROVED' status AND "Training Trial" type HHI 070218 Removed on Training Team demand (Send Manually)
-                if(tr.Status__c == sTRStatusApp && mapOldTR.get(tr.Id).Status__c != sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_TRAIN)
-                    setTTApprov.add(tr.Id);
-				else */
-				if(tr.Status__c == sTRStatusRej && mapOldTR.get(tr.Id).Status__c != sTRStatusRej && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_TRAIN)
-					setTTRejec.add(tr.Id);
 
 				// FOR TRIAL REQUEST WITH 'APPROVED' status AND "Standard Trial" type
-				/*RCA 25-02-2019 REF-1182 To launch email only if PoC_Terms_and_Conditions_Accepted__c = true 
-				else if(tr.Status__c == sTRStatusApp && mapOldTR.get(tr.Id).Status__c != sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) */
 				else 
 					if( (tr.Type__c == 'POC' && tr.Status__c == sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND && tr.POC_T_C_Accepted__c == true && mapOldTR.get(tr.Id).POC_T_C_Accepted__c == false) || 
 				         ((tr.Type__c == 'Free Trial' || tr.Type__c == 'Project') && tr.Status__c == sTRStatusApp && mapOldTR.get(tr.Id).Status__c != sTRStatusApp && tr.RecordTypeId == MEGAClass.ID_TRIAL_RT_STAND) ) {
@@ -394,13 +319,13 @@ public class TrialRequestTriggerHandler {
 								for (MEGAEnvironment__c Mega : [SELECT Id, Name, Free_Trial_Request_Closed__c, Status__c FROM MEGAEnvironment__c  WHERE Id IN: SetMega]) {
 									Mega.Status__c = 'FREE';
 									Mega.Free_Trial_Request_Closed__c = True;
-									//WSRestCalloutClass.futuremakepostcall(lstEnvId);
+								
 									lstMega.add(Mega);
 									System.debug('***MEGA environment after rejection ' + lstMega);
 								}
 							}
 						}
-						//*REF-2916 7-Apr-21 RCA To reassign Mega Env after resubmission
+						// To reassign Mega Env after resubmission
 						else 
 							if (tr.Status__c == sTRStatusSub && mapOldTR.get(tr.Id).Status__c == sTRStatusRej) {
 								List<MEGAEnvironment__c> lstMega1 = new List<MEGAEnvironment__c>([SELECT Id, Name, Status__c, Version__c, Server__r.Name, Server__r.Version__r.Name , Server__r.Version__r.CreatedDate, Password__c FROM MEGAEnvironment__c 
@@ -432,7 +357,7 @@ public class TrialRequestTriggerHandler {
 
             }
 
-			/* RCA 2019-11-20 REF-1797 FREE TRIAL PROJECT BEGIN*/
+			// FREE TRIAL PROJECT UPDATE BEGIN
 			if(ListTrial.size() > 0){
 				try {
 					update ListTrial;
@@ -458,7 +383,7 @@ public class TrialRequestTriggerHandler {
 						system.debug ('**Exception for Trial Login Delete  ' + e);
 					}
 				}
-				/* RCA 2019-11-20 REF-1797 FREE TRIAL PROJECT END*/
+				// FREE TRIAL PROJECT UPDATE END
 			}
 			
 			If (lstMega.size() > 0) {
@@ -480,18 +405,13 @@ public class TrialRequestTriggerHandler {
 			}
 
 			try{
-				/* FOR TRIAL REQUEST WITH 'APPROVED' status AND "Training Trial" type HHI 070218 Removed on Training Team demand (Send Manually)
-				if(setTTApprov != null && setTTApprov.size() > 0){
-                    EmailTemplateClass.prepareBulkUpdate(UtilityClass.getTrialLogin(setTTApprov));
-                }
-				*/
-				// FOR TRIAL REQUEST WITH 'APPROVED' status AND "Standard Trial" type
+
+				//Call EmailTemplate class to prepare email notification to be sent to customer/prospect
+	
                 if(setSTR != null && setSTR.size() > 0){
                     EmailTemplateClass.prepareBulkUpdate(UtilityClass.getTrialLogin(setSTR));
                 }
-				if(setTTRejec != null && setTTRejec.size() > 0){
-					TrialRequestClass.deleteEventsFromTTR(setTTRejec);
-				}
+
             }
             catch(Exception e){ lstNewTR[0].addError('Trigger afterUpdate on TrialRequest__c : Exception at line number = ' + e.getLineNumber() + ', Error message = ' + e.getMessage()); }
         }
