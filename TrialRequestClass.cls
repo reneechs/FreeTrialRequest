@@ -31,21 +31,12 @@ public class TrialRequestClass{
 	}
 
 	private static  TrialRequest__c createTrialRequest(Map<Id, sObject> mapIds, ID id){
-		TrialRequest__c tr = new TrialRequest__c();
-		/*if(id.getSObjectType() == Lead.getSObjectType()){
-			tr.Lead__c = id;
-		}
-		else{ */
+		TrialRequest__c tr = new TrialRequest__c();	
 		tr.Type__c = 'Free Trial';
-		tr.Contact__c = id;
-		//}
+		tr.Contact__c = id;		
 		tr.Comments__c = (String)mapIds.get(id).get('ProductProjectType__c');
 		tr.Language__c = (String)mapIds.get(id).get('TrialRequestLanguage__c');
-
 		return tr;
 	}
 
-
-
-	}
 }
